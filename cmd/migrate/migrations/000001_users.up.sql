@@ -1,0 +1,11 @@
+CREATE EXTENSION IF NOT EXISTS citext;
+
+CREATE TABLE IF NOT EXISTS users(
+    id BIGSERIAL PRIMARY KEY,
+    fname VARCHAR(80) NOT NULL,
+    lname VARCHAR(80),
+    password BYTEA NOT NULL,
+    email CITEXT UNIQUE NOT NULL,
+    age INT CHECK(age > 0 AND age < 100),
+    active BOOLEAN DEFAULT FALSE
+);
