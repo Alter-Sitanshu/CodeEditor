@@ -27,6 +27,10 @@ func main() {
 		tokencfg: TokenConfig{
 			expiry: time.Hour * 3,
 		},
+		auth: BasicAuthConfig{
+			username: env.GetString("ADMIN_USER", "admin"),
+			pass:     env.GetString("ADMIN_PASS", "admin"),
+		},
 	}
 
 	authenticator := auth.NewAuthenticator(

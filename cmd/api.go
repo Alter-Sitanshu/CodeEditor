@@ -27,6 +27,7 @@ type Config struct {
 	addr     string
 	dbcfg    DBConfig
 	tokencfg TokenConfig
+	auth     BasicAuthConfig
 }
 
 type DBConfig struct {
@@ -38,6 +39,11 @@ type DBConfig struct {
 
 type TokenConfig struct {
 	expiry time.Duration
+}
+
+type BasicAuthConfig struct {
+	username string
+	pass     string
 }
 
 func (app *Application) mount() http.Handler {
@@ -54,14 +60,28 @@ func (app *Application) mount() http.Handler {
 	router.Use(middleware.Timeout(60 * time.Second))
 
 	router.Route("/v1", func(r chi.Router) {
-		r.Get("/health", app.HealthCheckHandler)
+		r.With(app.BasicAuthMiddleware()).Get("/health", app.HealthCheckHandler)
 
+		// The sign in page will make a post request here to get the JWT
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/token", app.TokenHandler)
 		})
 
-		r.Route("/user", func(r chi.Router) {
+		r.Route("/signup", func(r chi.Router) {
 			r.Post("/", app.CreateUserHandler)
+			r.Post("/activate", app.ActivateUserHandler)
+		})
+
+		r.Route("/user", func(r chi.Router) {
+			r.Use(app.AuthMiddleware)
+			r.Get("/", app.GetUserHandler)
+		})
+
+		r.Route("/rooms", func(r chi.Router) {
+			r.Use(app.AuthMiddleware)
+			r.Get("/", app.GetUserRoomsHandler)
+			r.Post("/", app.CreateRoomHandler)
+			r.Get("/{id}", app.GetRoomHandler)
 		})
 	})
 

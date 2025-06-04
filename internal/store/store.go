@@ -16,11 +16,17 @@ var (
 
 type Storage struct {
 	UserStore interface {
+		GetUserById(context.Context, int64) (*User, error)
 		create(context.Context, *sql.Tx, *User) error
 		CreateAndInvite(context.Context, *User, string, time.Duration) error
 		DeleteUser(context.Context, *User) error
 		authorise(context.Context, *sql.Tx, string, time.Time) (*UserFromToken, error)
 		ActivateUser(context.Context, string, time.Time) error
+	}
+	RoomStore interface {
+		Create(context.Context, *Room) error
+		GetUserRooms(context.Context, *User) ([]Room, error)
+		GetRoomById(context.Context, int64) (*RoomResponse, error)
 	}
 }
 
@@ -45,6 +51,9 @@ func Mount(addr string, MaxConns, MaxIdleConns, MaxIdleTime int) (*sql.DB, error
 func NewPostgresStore(db *sql.DB) Storage {
 	return Storage{
 		UserStore: &UserStore{
+			db: db,
+		},
+		RoomStore: &RoomStore{
 			db: db,
 		},
 	}

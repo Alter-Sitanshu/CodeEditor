@@ -11,7 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var ErrEmptyPass error = errors.New("password empty not allowed")
+var ErrNotFound error = errors.New("resource not found")
 
 type UserStore struct {
 	db *sql.DB
@@ -20,10 +20,11 @@ type UserStore struct {
 type User struct {
 	Id        int64    `json:"id"`
 	FirstName string   `json:"first_name"`
-	LastName  string   `json:"last_name"`
+	LastName  string   `json:"last_name,omitempty"`
 	Password  password `json:"-"`
-	Email     string   `json:"email"`
-	Age       int      `json:"age"`
+	Email     string   `json:"email,omitempty"`
+	Age       int      `json:"age,omitempty"`
+	Active    bool     `json:"active,omitempty"`
 }
 
 type password struct {
@@ -52,6 +53,33 @@ func (pass *password) Encrypt(text string) error {
 func (pass *password) Verify(text string) bool {
 	err := bcrypt.CompareHashAndPassword(pass.hash, []byte(text))
 	return err == nil
+}
+
+func (u *UserStore) GetUserById(ctx context.Context, id int64) (*User, error) {
+	query := `
+		SELECT id, fname, lname, email, age, active
+		FROM users
+		WHERE id = $1
+	`
+	var user User
+	err := u.db.QueryRowContext(ctx, query, id).Scan(
+		&user.Id,
+		&user.FirstName,
+		&user.LastName,
+		&user.Email,
+		&user.Age,
+		&user.Active,
+	)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			return nil, ErrNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &user, nil
 }
 
 func (u *UserStore) create(ctx context.Context, tx *sql.Tx, user *User) error {
