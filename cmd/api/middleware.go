@@ -3,16 +3,20 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
 )
 
 type Userctx string
+type Roomctx string
 
 const userctx Userctx = "user"
+const roomctx Roomctx = "room"
 
 func (app *Application) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -87,4 +91,26 @@ func (app *Application) BasicAuthMiddleware() func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// Room middleware
+func (app *Application) RoomMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		roomIdParam := chi.URLParam(r, "id")
+		roomId, err := strconv.ParseInt(roomIdParam, 10, 64)
+		ctx := r.Context()
+		if err != nil {
+			log.Println(err.Error())
+			jsonResponse(w, http.StatusBadRequest, err.Error())
+		}
+
+		room, err := app.database.RoomStore.GetRoomById(ctx, roomId)
+		if err != nil {
+			log.Println(err.Error())
+			jsonResponse(w, http.StatusInternalServerError, err.Error())
+		}
+
+		ctx = context.WithValue(ctx, roomctx, room)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }

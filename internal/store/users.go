@@ -18,7 +18,7 @@ type UserStore struct {
 }
 
 type User struct {
-	Id        int64    `json:"id"`
+	Id        int64    `json:"id,omitempty"`
 	FirstName string   `json:"first_name"`
 	LastName  string   `json:"last_name,omitempty"`
 	Password  password `json:"-"`
@@ -116,7 +116,7 @@ func (u *UserStore) CreateAndInvite(ctx context.Context, user *User,
 		if err != nil {
 			return err
 		}
-		err = createNewToken(ctx, tx, expiry, user.Id, token)
+		err = CreateNewUserToken(ctx, tx, expiry, user.Id, token)
 		if err != nil {
 			return err
 		}
@@ -125,7 +125,7 @@ func (u *UserStore) CreateAndInvite(ctx context.Context, user *User,
 	})
 }
 
-func createNewToken(ctx context.Context, tx *sql.Tx,
+func CreateNewUserToken(ctx context.Context, tx *sql.Tx,
 	exp time.Duration, userid int64, token string) error {
 
 	query := `

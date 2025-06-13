@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS join_tokens;
+DROP TABLE IF EXISTS user_tokens;

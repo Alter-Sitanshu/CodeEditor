@@ -6,6 +6,7 @@ import (
 
 	"github.com/Alter-Sitanshu/CodeEditor/internal/auth"
 	"github.com/Alter-Sitanshu/CodeEditor/internal/env"
+	"github.com/Alter-Sitanshu/CodeEditor/internal/sockets"
 	"github.com/Alter-Sitanshu/CodeEditor/internal/store"
 	"github.com/joho/godotenv"
 )
@@ -44,17 +45,24 @@ func main() {
 		cfg.dbcfg.MaxIdleTime,
 	)
 	if err != nil {
-		log.Println(err.Error())
-		return
+		log.Fatal(err.Error())
 	}
+	defer db.Close()
 
 	psql := store.NewPostgresStore(db)
+
+	RoomHub := sockets.NewHub()
+	executor := sockets.NewJudge0Executor()
+
 	app := &Application{
 		config:        cfg,
 		database:      psql,
 		authenticator: *authenticator,
+		hub:           RoomHub,
+		executor:      executor,
 	}
 
+	app.hub.Run()
 	handlerMux := app.mount()
 	err = app.run(handlerMux)
 

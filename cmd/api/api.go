@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Alter-Sitanshu/CodeEditor/internal/auth"
+	"github.com/Alter-Sitanshu/CodeEditor/internal/sockets"
 	"github.com/Alter-Sitanshu/CodeEditor/internal/store"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -21,6 +22,8 @@ type Application struct {
 	config        Config
 	database      store.Storage
 	authenticator auth.Authenticator
+	hub           *sockets.Hub
+	executor      *sockets.Judge0Executor
 }
 
 type Config struct {
@@ -45,6 +48,8 @@ type BasicAuthConfig struct {
 	username string
 	pass     string
 }
+
+const expiry time.Duration = time.Hour * 3 * 24
 
 func (app *Application) mount() http.Handler {
 	router := chi.NewRouter()
@@ -81,7 +86,14 @@ func (app *Application) mount() http.Handler {
 			r.Use(app.AuthMiddleware)
 			r.Get("/", app.GetUserRoomsHandler)
 			r.Post("/", app.CreateRoomHandler)
-			r.Get("/{id}", app.GetRoomHandler)
+			r.Route("/{id}", func(r chi.Router) {
+				r.Use(app.RoomMiddleware)
+				r.Get("/", app.GetRoomHandler)
+				r.Post("/request/{roleid}", app.RequestRoomHandler)
+				r.Get("/editor", app.EditorRoomHandler)
+				r.Post("/execute", app.ExecuteCodeHandler)
+			})
+			r.Put("/{token}", app.AcceptMemberHandler)
 		})
 	})
 

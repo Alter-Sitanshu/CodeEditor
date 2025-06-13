@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	_ "github.com/lib/pq"
 )
 
 const QueryTimeOut time.Duration = time.Minute * 3
@@ -12,6 +14,7 @@ const QueryTimeOut time.Duration = time.Minute * 3
 var (
 	ErrDupliMail    = errors.New("mail already exists")
 	ErrTokenExpired = errors.New("token has expired")
+	ErrInvalidRole  = errors.New("role not valid")
 )
 
 type Storage struct {
@@ -26,7 +29,11 @@ type Storage struct {
 	RoomStore interface {
 		Create(context.Context, *Room) error
 		GetUserRooms(context.Context, *User) ([]Room, error)
-		GetRoomById(context.Context, int64) (*RoomResponse, error)
+		GetRoomById(context.Context, int64) (*Room, error)
+		AddMember(context.Context, *sql.Tx, int64, int64, int64) error
+		authorise(context.Context, *sql.Tx, string, time.Time) (*RoomUser, error)
+		AcceptJoinRequest(context.Context, string, time.Time) error
+		CreateNewJoinToken(context.Context, time.Duration, int64, int64, int64, string) error
 	}
 }
 
