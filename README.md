@@ -43,7 +43,16 @@ cd CodeEditor
 
 - JUDGE0_KEY=your_judge0_api_key
 
-### 3. Start Server
+### 3. Start Database
+```bash
+docker run -d --name yourcontainername -e POSTGRES_USER=youruser -e POSTGRES_PASSWORD=yourpassword -p 5432:5432 postgres:12-alpine
+docker run yourcontainername
+```
+- Login to your postgres server through Terminal or trough VSCode and create migrations
+
+
+
+### 4. Start Server
 ```bash
 go run cmd/api/*.go
 ```
