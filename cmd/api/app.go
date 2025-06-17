@@ -6,6 +6,7 @@ import (
 
 	"github.com/Alter-Sitanshu/CodeEditor/internal/auth"
 	"github.com/Alter-Sitanshu/CodeEditor/internal/env"
+	"github.com/Alter-Sitanshu/CodeEditor/internal/mail"
 	"github.com/Alter-Sitanshu/CodeEditor/internal/sockets"
 	"github.com/Alter-Sitanshu/CodeEditor/internal/store"
 	"github.com/joho/godotenv"
@@ -32,6 +33,14 @@ func main() {
 			username: env.GetString("ADMIN_USER", "admin"),
 			pass:     env.GetString("ADMIN_PASS", "admin"),
 		},
+		mailcfg: mail.SMTPConfig{
+			Host:     "smtp.gmail.com",
+			Port:     587,
+			Username: env.GetString("COMPANY", "example@gmail.com"),
+			Password: env.GetString("SMTP_PASS", ""),
+			From:     env.GetString("COMP_ADDR", "example@gmail.com"),
+			Expiry:   time.Hour * 24 * 3,
+		},
 	}
 
 	authenticator := auth.NewAuthenticator(
@@ -53,6 +62,7 @@ func main() {
 
 	RoomHub := sockets.NewHub()
 	executor := sockets.NewJudge0Executor()
+	mailer := mail.NewSMTPSender(cfg.mailcfg)
 
 	app := &Application{
 		config:        cfg,
@@ -60,6 +70,7 @@ func main() {
 		authenticator: *authenticator,
 		hub:           RoomHub,
 		executor:      executor,
+		mailer:        mailer,
 	}
 
 	app.hub.Run()

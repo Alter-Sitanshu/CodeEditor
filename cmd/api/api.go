@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Alter-Sitanshu/CodeEditor/internal/mail"
+
 	"github.com/Alter-Sitanshu/CodeEditor/internal/auth"
 	"github.com/Alter-Sitanshu/CodeEditor/internal/sockets"
 	"github.com/Alter-Sitanshu/CodeEditor/internal/store"
@@ -24,6 +26,7 @@ type Application struct {
 	authenticator auth.Authenticator
 	hub           *sockets.Hub
 	executor      *sockets.Judge0Executor
+	mailer        *mail.SMTPSender
 }
 
 type Config struct {
@@ -31,6 +34,7 @@ type Config struct {
 	dbcfg    DBConfig
 	tokencfg TokenConfig
 	auth     BasicAuthConfig
+	mailcfg  mail.SMTPConfig
 }
 
 type DBConfig struct {

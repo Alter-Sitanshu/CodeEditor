@@ -3,13 +3,17 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/Alter-Sitanshu/CodeEditor/internal/mail"
 	"github.com/Alter-Sitanshu/CodeEditor/internal/store"
 	"github.com/google/uuid"
 )
+
+const MAX_TRIES int = 5
 
 type UserPayload struct {
 	FirstName string `json:"first_name"`
@@ -62,6 +66,34 @@ func (app *Application) CreateUserHandler(w http.ResponseWriter, r *http.Request
 		default:
 			log.Println(err.Error())
 			jsonResponse(w, http.StatusBadRequest, err.Error())
+		}
+		return
+	}
+	req := mail.EmailRequest{
+		To:      user.Email,
+		Subject: "Auth-Bearer/Token",
+		Body:    fmt.Sprintf("Your user verification token is: %v\nExpires in: 3 days", plainToken),
+	}
+	err = app.mailer.SendEmail(req)
+	if err != nil {
+		log.Printf("encountered error sending mail: %v\n", err.Error())
+		log.Println("error sending email, retrying")
+		tries := 1
+		for tries <= MAX_TRIES {
+			err = app.mailer.SendEmail(req)
+			if err != nil {
+				tries++
+				continue
+			} else {
+				log.Printf("Retries attempted: %d\n", tries)
+				break
+			}
+		}
+		if tries > MAX_TRIES {
+			app.database.UserStore.DeleteUser(ctx, &user) // (SAGA) pattern
+			jsonResponse(w, http.StatusInternalServerError, "failed to send email verification.")
+		} else {
+			jsonResponse(w, http.StatusCreated, "user created")
 		}
 		return
 	}
