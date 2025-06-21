@@ -73,7 +73,7 @@ func main() {
 		mailer:        mailer,
 	}
 
-	app.hub.Run()
+	go app.hub.Run()
 	handlerMux := app.mount()
 	err = app.run(handlerMux)
 
