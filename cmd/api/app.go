@@ -61,6 +61,7 @@ func main() {
 	psql := store.NewPostgresStore(db)
 
 	RoomHub := sockets.NewHub()
+	VoiceManager := sockets.NewVoiceChatManager()
 	executor := sockets.NewJudge0Executor()
 	mailer := mail.NewSMTPSender(cfg.mailcfg)
 
@@ -69,6 +70,7 @@ func main() {
 		database:      psql,
 		authenticator: *authenticator,
 		hub:           RoomHub,
+		vcm:           VoiceManager,
 		executor:      executor,
 		mailer:        mailer,
 	}

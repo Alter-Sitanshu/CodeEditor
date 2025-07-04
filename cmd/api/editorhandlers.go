@@ -33,7 +33,8 @@ func (app *Application) EditorRoomHandler(w http.ResponseWriter, r *http.Request
 
 	app.hub.Register <- clientConnection
 	log.Println("Client connected: ", conn.LocalAddr())
-	go app.hub.ReadMessages(clientConnection)
+
+	go app.hub.ReadMessagesWithVoice(clientConnection, app.vcm)
 	go app.hub.WriteMessages(clientConnection)
 }
 

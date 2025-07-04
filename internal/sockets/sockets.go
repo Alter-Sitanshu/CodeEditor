@@ -21,8 +21,8 @@ type Connection struct {
 
 type Hub struct {
 	// Map of roomID -> map of userID -> Connection
-	Rooms   map[int64]map[int64]*Connection
-	RoomMux sync.Mutex
+	Rooms map[int64]map[int64]*Connection
+	mutex sync.RWMutex
 	// Channels for hub operations
 	Register   chan *Connection
 	Unregister chan *Connection
@@ -61,24 +61,27 @@ type CursorData struct {
 	Column int `json:"column"`
 }
 
-func (h *Hub) ReadMessages(c *Connection) {
+func (h *Hub) ReadMessagesWithVoice(c *Connection, vcm *VoiceChatManager) {
 	defer func() {
+		// Clean up voice chat when connection closes
+		vcm.LeaveVoiceChat(c.RoomID, c.UserID)
 		h.Unregister <- c
 		c.Conn.Close()
 	}()
 
 	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
-
 	c.Conn.SetPongHandler(func(appData string) error {
 		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
+
 	for {
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
 			log.Printf("Read error: %v", err)
 			break
 		}
+
 		var msg WSMessage
 		if err := json.Unmarshal(message, &msg); err != nil {
 			log.Printf("JSON unmarshal error: %v", err)
@@ -90,7 +93,14 @@ func (h *Hub) ReadMessages(c *Connection) {
 		msg.RoomID = c.RoomID
 		msg.Timestamp = time.Now().Unix()
 
-		// Broadcast to other users in room
+		// Handle voice-related messages
+		if msg.Type == "voice-join" || msg.Type == "voice-leave" ||
+			msg.Type == "voice-state-update" || msg.Type == "voice-participants" {
+			h.HandleVoiceMessage(c, msg, vcm)
+			continue
+		}
+
+		// Handle existing message types
 		broadcastMsg, _ := json.Marshal(msg)
 		if msg.Type == "chat" {
 			h.ChatCast <- ChatBroadcast{
@@ -111,10 +121,8 @@ func (h *Hub) ReadMessages(c *Connection) {
 				Sender:  c.UserID,
 			}
 		} else {
-			log.Printf("Invlaid Broadcast: %v", err)
-			break
+			log.Printf("Invalid message type: %s", msg.Type)
 		}
-
 	}
 }
 
@@ -164,17 +172,17 @@ func (h *Hub) Run() {
 		select {
 		case conn := <-h.Register:
 			// New connection to room
-			h.RoomMux.Lock()
+			h.mutex.Lock()
 			if h.Rooms[conn.RoomID] == nil {
 				h.Rooms[conn.RoomID] = make(map[int64]*Connection)
 			}
 			h.Rooms[conn.RoomID][conn.UserID] = conn
-			h.RoomMux.Unlock()
+			h.mutex.Unlock()
 			log.Printf("User %d joined room %d", conn.UserID, conn.RoomID)
 
 		case conn := <-h.Unregister:
 			// Remove connection from room
-			h.RoomMux.Lock()
+			h.mutex.Lock()
 			if room, exists := h.Rooms[conn.RoomID]; exists {
 				if _, exists := room[conn.UserID]; exists {
 					delete(room, conn.UserID)
@@ -182,10 +190,10 @@ func (h *Hub) Run() {
 					log.Printf("User %d left room %d", conn.UserID, conn.RoomID)
 				}
 			}
-			h.RoomMux.Unlock()
+			h.mutex.Unlock()
 
 		case msg := <-h.Broadcast:
-			h.RoomMux.Lock()
+			h.mutex.Lock()
 			// Sending message to all users in room except sender
 			if room, exists := h.Rooms[msg.RoomID]; exists {
 				for userID, conn := range room {
@@ -200,9 +208,9 @@ func (h *Hub) Run() {
 					}
 				}
 			}
-			h.RoomMux.Unlock()
+			h.mutex.Unlock()
 		case msg := <-h.ChatCast:
-			h.RoomMux.Lock()
+			h.mutex.Lock()
 			// Sending message to all users in room except sender
 			if room, exists := h.Rooms[msg.RoomID]; exists {
 				for userID, conn := range room {
@@ -217,7 +225,7 @@ func (h *Hub) Run() {
 					}
 				}
 			}
-			h.RoomMux.Unlock()
+			h.mutex.Unlock()
 		}
 	}
 }

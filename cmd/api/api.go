@@ -25,6 +25,7 @@ type Application struct {
 	database      store.Storage
 	authenticator auth.Authenticator
 	hub           *sockets.Hub
+	vcm           *sockets.VoiceChatManager
 	executor      *sockets.Judge0Executor
 	mailer        *mail.SMTPSender
 }
